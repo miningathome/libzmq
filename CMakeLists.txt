@@ -9,6 +9,11 @@ if(APPLE)
   option(ZMQ_BUILD_FRAMEWORK "Build as OS X framework" ON)
 endif()
 
+option(INSTALL_SOURCE "Install src files" OFF)
+option(INSTALL_READMES "Install .txt (readme, license, etc) files" OFF)
+
+# make visual studio and xcode output libs and binaries without the configuration name (Release/Debug)
+include (${CMAKE_CURRENT_SOURCE_DIR}/cmake/clean_slate.cmake)
 
 set(POLLER "" CACHE STRING "Choose polling system manually. valid values are
                             kqueue, epoll, devpoll, poll or select [default=autodetect]")
@@ -692,10 +697,12 @@ endif()
 #          DESTINATION include
 #          COMPONENT SDK)
 
-if(NOT ZMQ_BUILD_FRAMEWORK)
-  file(GLOB private_headers "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
-  install(FILES ${sources} ${private_headers} DESTINATION src/zmq
-          COMPONENT SourceCode)
+if(INSTALL_SOURCE)
+  if(NOT ZMQ_BUILD_FRAMEWORK)
+    file(GLOB private_headers "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+    install(FILES ${sources} ${private_headers} DESTINATION src/zmq
+            COMPONENT SourceCode)
+  endif()
 endif()
 
 foreach(readme ${readme-docs})
@@ -703,7 +710,9 @@ foreach(readme ${readme-docs})
 
   if(NOT ZMQ_BUILD_FRAMEWORK)
     if(MSVC)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${readme}.txt DESTINATION .)
+      if (INSTALL_READMES)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${readme}.txt DESTINATION .)
+      endif()
     else()
       install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${readme}.txt DESTINATION etc/zmq)
     endif()
