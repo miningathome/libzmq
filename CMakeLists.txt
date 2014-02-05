@@ -727,7 +727,7 @@ endif()
 
 
 if(MSVC)
-  include(InstallRequiredSystemLibraries)
+  # include(InstallRequiredSystemLibraries)
 
   if(CMAKE_CL_64)
     set(arch_name "x64")
