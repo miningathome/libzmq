@@ -11,6 +11,10 @@ endif()
 
 option(INSTALL_SOURCE "Install src files" OFF)
 option(INSTALL_READMES "Install .txt (readme, license, etc) files" OFF)
+option(BUILD_TESTS "Build and run tests" OFF)
+option(BUILD_DOCS "Build docs" OFF)
+option(BUILD_PERF_TOOLS "Build performance tools" OFF)
+option(BUILD_STATIC_LIBS "Build static library" OFF)
 
 # make visual studio and xcode output libs and binaries without the configuration name (Release/Debug)
 include (${CMAKE_CURRENT_SOURCE_DIR}/cmake/clean_slate.cmake)
@@ -197,12 +201,14 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_definitions(-D_DARWIN_C_SOURCE)
 endif()
 
-set(CMAKE_PYTHON_VERSION 2.7 2.6 2.5 2.4)
-find_package(PythonInterp)
-find_package(AsciiDoc)
+if (BUILD_DOCS)
+  set(CMAKE_PYTHON_VERSION 2.7 2.6 2.5 2.4)
+  find_package(PythonInterp)
+  find_package(AsciiDoc)
+endif()
 
-cmake_dependent_option(WITH_DOC "Build Reference Guide documentation(requires DocBook)" ON
-                       "PYTHON_FOUND;ASCIIDOC_FOUND" OFF)
+#cmake_dependent_option(WITH_DOC "Build Reference Guide documentation(requires DocBook)" ON
+#                       "PYTHON_FOUND;ASCIIDOC_FOUND" OFF)
 
 if(MSVC)
   if(WITH_OPENPGM)
@@ -459,31 +465,33 @@ if(MSVC)
     DEPENDS ${nsis-template})
 endif()
 
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc)
-file(GLOB docs RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/ "${CMAKE_CURRENT_SOURCE_DIR}/doc/*.txt")
-set(html-docs)
-foreach(txt ${docs})
-  string(REGEX REPLACE ".*/(.*)\\.txt" "\\1.html" html ${txt})
-  set(src ${txt})
-  set(dst doc/${html})
-  add_custom_command(
-    OUTPUT  ${dst}
-    COMMAND ${PYTHON_EXECUTABLE}
-    ARGS    -x
-    ${ASCIIDOC_EXECUTABLE}
-    -d manpage
-    -b xhtml11
-    -f ${CMAKE_CURRENT_SOURCE_DIR}/doc/asciidoc.conf
-    -azmq_version=${ZMQ_VERSION}
-    -o ${dst}
-    ${src}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${src}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generating ${html}")
-  if(WITH_DOC)
-    list(APPEND html-docs ${CMAKE_CURRENT_BINARY_DIR}/${dst})
-  endif()
-endforeach()
+if (BUILD_DOCS)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc)
+  file(GLOB docs RELATIVE ${CMAKE_CURRENT_BINARY_DIR}/ "${CMAKE_CURRENT_SOURCE_DIR}/doc/*.txt")
+  set(html-docs)
+  foreach(txt ${docs})
+    string(REGEX REPLACE ".*/(.*)\\.txt" "\\1.html" html ${txt})
+    set(src ${txt})
+    set(dst doc/${html})
+    add_custom_command(
+      OUTPUT  ${dst}
+      COMMAND ${PYTHON_EXECUTABLE}
+      ARGS    -x
+      ${ASCIIDOC_EXECUTABLE}
+      -d manpage
+      -b xhtml11
+      -f ${CMAKE_CURRENT_SOURCE_DIR}/doc/asciidoc.conf
+      -azmq_version=${ZMQ_VERSION}
+      -o ${dst}
+      ${src}
+      DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${src}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMENT "Generating ${html}")
+    if(WITH_DOC)
+      list(APPEND html-docs ${CMAKE_CURRENT_BINARY_DIR}/${dst})
+    endif()
+  endforeach()
+endif()
 
 if(ZMQ_BUILD_FRAMEWORK)
   add_custom_command(
@@ -499,42 +507,48 @@ endif()
 # output
 
 if(MSVC)
+  list(APPEND buildlibs libzmq)
   add_library(libzmq SHARED ${sources} ${public_headers} ${html-docs} ${readme-docs} ${CMAKE_CURRENT_BINARY_DIR}/NSIS.template.in)
   target_link_libraries(libzmq ${OPTIONAL_LIBRARIES})
   set_target_properties(libzmq PROPERTIES
     PUBLIC_HEADER "${public_headers}"
-    RELEASE_POSTFIX "${_zmq_COMPILER}-mt-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
-    DEBUG_POSTFIX "${_zmq_COMPILER}-mt-gd-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}")
-  add_library(libzmq-static STATIC ${sources})
-  set_target_properties(libzmq-static PROPERTIES
-    PUBLIC_HEADER "${public_headers}"
-    RELEASE_POSTFIX "${_zmq_COMPILER}-mt-s-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
-    DEBUG_POSTFIX "${_zmq_COMPILER}-mt-sgd-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
-    COMPILE_FLAGS "/D ZMQ_STATIC"
-    OUTPUT_NAME "libzmq")
+    #RELEASE_POSTFIX "${_zmq_COMPILER}-mt-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
+    #DEBUG_POSTFIX "${_zmq_COMPILER}-mt-gd-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
+    )
+  
+  if (BUILD_STATIC_LIBS)
+    list(APPEND buildlibs libzmq-static)
+    add_library(libzmq-static STATIC ${sources})
+    set_target_properties(libzmq-static PROPERTIES
+      PUBLIC_HEADER "${public_headers}"
+      #RELEASE_POSTFIX "${_zmq_COMPILER}-mt-s-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
+      #DEBUG_POSTFIX "${_zmq_COMPILER}-mt-sgd-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}"
+      COMPILE_FLAGS "/D ZMQ_STATIC"
+      OUTPUT_NAME "libzmq")
+  endif()
 else()
-    add_library(libzmq SHARED ${sources} ${public_headers} ${html-docs} ${readme-docs} ${zmq-pkgconfig})
-    if(ZMQ_BUILD_FRAMEWORK)
-      set_target_properties(libzmq PROPERTIES
-                            FRAMEWORK TRUE
-                            OUTPUT_NAME "ZeroMQ"
-                            PUBLIC_HEADER "${public_headers}"
-                            MACOSX_FRAMEWORK_IDENTIFIER "org.zeromq.libzmq"
-                            MACOSX_FRAMEWORK_SHORT_VERSION_STRING ${ZMQ_VERSION}
-                            MACOSX_FRAMEWORK_BUNDLE_VERSION ${ZMQ_VERSION}
-                            VERSION ${ZMQ_VERSION}
-                            SOVERSION "${ZMQ_VERSION_MAJOR}.${ZMQ_VERSION_MINOR}.0")
-      set_source_files_properties(${html-docs} PROPERTIES
-                                  MACOSX_PACKAGE_LOCATION doc)
-      set_source_files_properties(${readme-docs} PROPERTIES
-                                  MACOSX_PACKAGE_LOCATION etc)
-      set_source_files_properties(${zmq-pkgconfig} PROPERTIES
-                                  MACOSX_PACKAGE_LOCATION lib/pkgconfig)
-    else()
-      set_target_properties(libzmq PROPERTIES
-                             OUTPUT_NAME "zmq"
-                             PUBLIC_HEADER "${public_headers}")
-    endif()
+  add_library(libzmq SHARED ${sources} ${public_headers} ${html-docs} ${readme-docs} ${zmq-pkgconfig})
+  if(ZMQ_BUILD_FRAMEWORK)
+    set_target_properties(libzmq PROPERTIES
+                          FRAMEWORK TRUE
+                          OUTPUT_NAME "ZeroMQ"
+                          PUBLIC_HEADER "${public_headers}"
+                          MACOSX_FRAMEWORK_IDENTIFIER "org.zeromq.libzmq"
+                          MACOSX_FRAMEWORK_SHORT_VERSION_STRING ${ZMQ_VERSION}
+                          MACOSX_FRAMEWORK_BUNDLE_VERSION ${ZMQ_VERSION}
+                          VERSION ${ZMQ_VERSION}
+                          SOVERSION "${ZMQ_VERSION_MAJOR}.${ZMQ_VERSION_MINOR}.0")
+    set_source_files_properties(${html-docs} PROPERTIES
+                                MACOSX_PACKAGE_LOCATION doc)
+    set_source_files_properties(${readme-docs} PROPERTIES
+                                MACOSX_PACKAGE_LOCATION etc)
+    set_source_files_properties(${zmq-pkgconfig} PROPERTIES
+                                MACOSX_PACKAGE_LOCATION lib/pkgconfig)
+  else()
+    set_target_properties(libzmq PROPERTIES
+                           OUTPUT_NAME "zmq"
+                           PUBLIC_HEADER "${public_headers}")
+  endif()
 endif()
 
 target_link_libraries(libzmq ${CMAKE_THREAD_LIBS_INIT})
@@ -552,12 +566,14 @@ if(HAVE_IPHLAPI)
   target_link_libraries(libzmq iphlpapi)
 endif()
 
-set(perf-tools local_lat
-               remote_lat
-               local_thr
-               remote_thr
-               inproc_lat
-               inproc_thr)
+if (BUILD_PERF_TOOLS)
+  set(perf-tools local_lat
+                 remote_lat
+                 local_thr
+                 remote_thr
+                 inproc_lat
+                 inproc_thr)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug") # Why?
   foreach(perf-tool ${perf-tools})
@@ -585,60 +601,62 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug") # Why?
   endforeach()
 endif()
 
-enable_testing()
-set(tests
-        test_system
-        test_pair_inproc
-        test_pair_tcp
-        test_reqrep_inproc
-        test_reqrep_tcp
-        test_hwm
-        test_reqrep_device
-        test_sub_forward
-        test_invalid_rep
-        test_msg_flags
-        test_connect_resolve
-        test_immediate
-        test_last_endpoint
-        test_term_endpoint
-        test_router_mandatory
-        test_probe_router
-        test_stream
-        test_stream_empty
-        test_stream_disconnect
-        test_disconnect_inproc
-        test_ctx_options
-        test_ctx_destroy
-        test_security_null
-        test_security_plain
-        test_security_curve
-        test_iov
-        test_spec_req
-        test_spec_rep
-        test_spec_dealer
-        test_spec_router
-        test_spec_pushpull
-        test_req_correlate
-        test_req_relaxed
-        test_conflate
-        test_inproc_connect
-        test_issue_566
-        test_shutdown_stress
-        test_timeo
-        test_many_sockets
-        test_diffserv
-        test_connect_rid
-)
-if(NOT WIN32)
-list(APPEND tests
-        test_monitor
-        test_pair_ipc
-        test_reqrep_ipc
-        test_fork
-        test_abstract_ipc
-        test_proxy
-        test_filter_ipc
-)
+if (BUILD_TESTS)
+  enable_testing()
+  set(tests
+          test_system
+          test_pair_inproc
+          test_pair_tcp
+          test_reqrep_inproc
+          test_reqrep_tcp
+          test_hwm
+          test_reqrep_device
+          test_sub_forward
+          test_invalid_rep
+          test_msg_flags
+          test_connect_resolve
+          test_immediate
+          test_last_endpoint
+          test_term_endpoint
+          test_router_mandatory
+          test_probe_router
+          test_stream
+          test_stream_empty
+          test_stream_disconnect
+          test_disconnect_inproc
+          test_ctx_options
+          test_ctx_destroy
+          test_security_null
+          test_security_plain
+          test_security_curve
+          test_iov
+          test_spec_req
+          test_spec_rep
+          test_spec_dealer
+          test_spec_router
+          test_spec_pushpull
+          test_req_correlate
+          test_req_relaxed
+          test_conflate
+          test_inproc_connect
+          test_issue_566
+          test_shutdown_stress
+          test_timeo
+          test_many_sockets
+          test_diffserv
+          test_connect_rid
+  )
+  if(NOT WIN32)
+  list(APPEND tests
+          test_monitor
+          test_pair_ipc
+          test_reqrep_ipc
+          test_fork
+          test_abstract_ipc
+          test_proxy
+          test_filter_ipc
+  )
+  endif()
 endif()
 
 foreach(test ${tests})
@@ -665,17 +683,13 @@ endif()
 # installer
 
 if(MSVC)
-  install(TARGETS libzmq libzmq-static
+  install(TARGETS ${buildlibs}
+          RUNTIME DESTINATION bin
           ARCHIVE DESTINATION lib
           LIBRARY DESTINATION lib
           PUBLIC_HEADER DESTINATION include
           COMPONENT SDK)
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    install(TARGETS libzmq libzmq-static
-            RUNTIME DESTINATION bin
-            ARCHIVE DESTINATION lib
-            PUBLIC_HEADER DESTINATION include
-            COMPONENT SDK)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lib/libzmq${_zmq_COMPILER}-mt-gd-${ZMQ_VERSION_MAJOR}_${ZMQ_VERSION_MINOR}_${ZMQ_VERSION_PATCH}.pdb DESTINATION lib
             COMPONENT SDK)
   else()
