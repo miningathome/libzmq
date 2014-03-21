@@ -1,6 +1,7 @@
 # CMake build script for ZeroMQ
 
 cmake_minimum_required(VERSION 2.8)
+
 project(ZeroMQ)
 
 option(WITH_OPENPGM "Build with support for OpenPGM" OFF)
@@ -16,8 +17,8 @@ option(BUILD_DOCS "Build docs" OFF)
 option(BUILD_PERF_TOOLS "Build performance tools" OFF)
 option(BUILD_STATIC_LIBS "Build static library" OFF)
 
-# make visual studio and xcode output libs and binaries without the configuration name (Release/Debug)
-include (${CMAKE_CURRENT_SOURCE_DIR}/cmake/clean_slate.cmake)
+# unify this build
+include(unifier/unifier.cmake)
 
 set(POLLER "" CACHE STRING "Choose polling system manually. valid values are
                             kqueue, epoll, devpoll, poll or select [default=autodetect]")
