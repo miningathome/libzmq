@@ -632,10 +632,10 @@ size_t zmq_msg_size (zmq_msg_t *msg_)
 
 int zmq_msg_more (zmq_msg_t *msg_)
 {
-    return zmq_msg_get (msg_, ZMQ_MORE);
+    return (int)zmq_msg_get (msg_, ZMQ_MORE);
 }
 
-int zmq_msg_get (zmq_msg_t *msg_, int option_)
+int64_t zmq_msg_get(zmq_msg_t *msg_, int option_)
 {
     switch (option_) {
         case ZMQ_MORE:
