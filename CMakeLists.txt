@@ -19,6 +19,7 @@ option(BUILD_TESTS "Build and run tests" OFF)
 option(BUILD_DOCS "Build docs" OFF)
 option(BUILD_PERF_TOOLS "Build performance tools" OFF)
 option(BUILD_STATIC_LIBS "Build static library" OFF)
+option(BUILD_PACKAGE "Build package" OFF)
 
 set(POLLER "" CACHE STRING "Choose polling system manually. valid values are
                             kqueue, epoll, devpoll, poll or select [default=autodetect]")
@@ -795,38 +796,40 @@ if(MSVC)
 #  set(CPACK_PACKAGE_INSTALL_DIRECTORY "ZMQ Install Directory")
 #  set(CPACK_TEMPORARY_DIRECTORY "ZMQ Temporary CPack Directory")
 
-  include(CPack)
+if(BUILD_PACKAGE)
+	include(CPack)
+	cpack_add_component_group(Development
+		DISPLAY_NAME "ZeroMQ software development kit"
+		EXPANDED)
+	cpack_add_component(PerfTools
+		DISPLAY_NAME "ZeroMQ performance tools"
+		INSTALL_TYPES FullInstall DevInstall)
+	cpack_add_component(SourceCode
+		DISPLAY_NAME "ZeroMQ source code"
+		DISABLED
+		INSTALL_TYPES FullInstall)
+	cpack_add_component(SDK
+		DISPLAY_NAME "ZeroMQ headers and libraries"
+		INSTALL_TYPES FullInstall DevInstall
+		GROUP Development)
+	if(WITH_DOC)
+		cpack_add_component(RefGuide
+			DISPLAY_NAME "ZeroMQ reference guide"
+			INSTALL_TYPES FullInstall DevInstall
+			GROUP Development)
+	endif()
+	cpack_add_component(Runtime
+		DISPLAY_NAME "ZeroMQ runtime files"
+		REQUIRED
+		INSTALL_TYPES FullInstall DevInstall MinInstall)
+	cpack_add_install_type(FullInstall
+		DISPLAY_NAME "Full install, including source code")
+	cpack_add_install_type(DevInstall
+		DISPLAY_NAME "Developer install, headers and libraries")
+	cpack_add_install_type(MinInstall
+		DISPLAY_NAME "Minimal install, runtime only")
+endif(BUILD_PACKAGE)
 
-  cpack_add_component_group(Development
-    DISPLAY_NAME "ZeroMQ software development kit"
-    EXPANDED)
-  cpack_add_component(PerfTools
-    DISPLAY_NAME "ZeroMQ performance tools"
-    INSTALL_TYPES FullInstall DevInstall)
-  cpack_add_component(SourceCode
-    DISPLAY_NAME "ZeroMQ source code"
-    DISABLED
-    INSTALL_TYPES FullInstall)
-  cpack_add_component(SDK
-    DISPLAY_NAME "ZeroMQ headers and libraries"
-    INSTALL_TYPES FullInstall DevInstall
-    GROUP Development)
-  if(WITH_DOC)
-    cpack_add_component(RefGuide
-      DISPLAY_NAME "ZeroMQ reference guide"
-      INSTALL_TYPES FullInstall DevInstall
-      GROUP Development)
-  endif()
-  cpack_add_component(Runtime
-    DISPLAY_NAME "ZeroMQ runtime files"
-    REQUIRED
-    INSTALL_TYPES FullInstall DevInstall MinInstall)
-  cpack_add_install_type(FullInstall
-    DISPLAY_NAME "Full install, including source code")
-  cpack_add_install_type(DevInstall
-    DISPLAY_NAME "Developer install, headers and libraries")
-  cpack_add_install_type(MinInstall
-    DISPLAY_NAME "Minimal install, runtime only")
 endif()
 
 # Export this for library to help build this as a sub-project
