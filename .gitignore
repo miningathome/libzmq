@@ -122,3 +122,4 @@ foreign/openpgm/*
 zeromq-*.tar.gz
 zeromq-*.zip
 core
+build/
