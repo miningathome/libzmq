@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 2.8)
 
 project(ZeroMQ)
 
+set(vendor "${CMAKE_CURRENT_SOURCE_DIR}/..")
+include(${vendor}/unifier/unifier.cmake)
+
 option(WITH_OPENPGM "Build with support for OpenPGM" OFF)
 
 if(APPLE)
@@ -16,9 +19,6 @@ option(BUILD_TESTS "Build and run tests" OFF)
 option(BUILD_DOCS "Build docs" OFF)
 option(BUILD_PERF_TOOLS "Build performance tools" OFF)
 option(BUILD_STATIC_LIBS "Build static library" OFF)
-
-# unify this build
-include(unifier/unifier.cmake)
 
 set(POLLER "" CACHE STRING "Choose polling system manually. valid values are
                             kqueue, epoll, devpoll, poll or select [default=autodetect]")
